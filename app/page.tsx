@@ -13,6 +13,10 @@ socket.on("connect", () => {
   console.log("Client connected with socket ID:", socket.id); // Log connection ID
 });
 
+socket.on('chatHistory', (messages) => {
+  setMessages(messages); // Assume setMessages is a state hook that stores messages
+});
+
 export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<{ text: string; timestamp: string; sender: string }[]>([]);
