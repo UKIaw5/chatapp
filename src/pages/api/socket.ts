@@ -8,7 +8,7 @@ import clientPromise from "../../../lib/mongodb";
 const users = new Set<string>();
 
 // Function to save a message to MongoDB
-async function saveMessage(messageData) {
+async function saveMessage(messageData: { userId: any; username: any; content: any; }) {
   const client = await clientPromise;
   const db = client.db("chatApp");
   const messagesCollection = db.collection("messages");
