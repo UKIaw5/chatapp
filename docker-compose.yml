@@ -12,4 +12,12 @@ services:
       - /app/node_modules
     environment:
       NODE_ENV: development
-
+# Remove or comment out the mongo service below
+#  mongo:
+#    image: mongo:latest
+#    container_name: mongo
+#    ports:
+#      - "27017:27017"
+#    environment:
+#      MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
+#      MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
