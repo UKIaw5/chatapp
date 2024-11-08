@@ -2,30 +2,30 @@
 
 import { Server } from "socket.io";
 import { NextApiRequest, NextApiResponse } from "next";
-import clientPromise from "../../lib/mongodb";
+import clientPromise from "../../../lib/mongodb";
 
+// Initialize users set
 const users = new Set<string>();
 
-import clientPromise from './lib/mongodb';
-
+// Function to save a message to MongoDB
 async function saveMessage(messageData) {
   const client = await clientPromise;
-  const db = client.db("chatApp"); // Replace 'chatApp' with your database name if different
+  const db = client.db("chatApp");
   const messagesCollection = db.collection("messages");
-  
-  return messagesCollection.insertOne({
+
+  const result = await messagesCollection.insertOne({
     userId: messageData.userId,
     username: messageData.username,
     content: messageData.content,
     timestamp: new Date(),
   });
+  
+  return result.insertedId
+    ? { _id: result.insertedId, ...messageData, timestamp: new Date() }
+    : null;
 }
 
-socket.on('sendMessage', async (messageData) => {
-  const savedMessage = await saveMessage(messageData);
-  io.emit('message', savedMessage); // Broadcast message to all clients
-});
-
+// Main handler function
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!res.socket.server.io) {
     const io = new Server(res.socket.server, {
@@ -36,48 +36,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     io.on("connection", async (socket) => {
       console.log("User connected:", socket.id);
 
-      // Connect to MongoDB
+      // Load and send chat history upon connection
       const client = await clientPromise;
-      const db = client.db("chatapp");
+      const db = client.db("chatApp");
+      const messagesCollection = db.collection("messages");
+      const messages = await messagesCollection.find({}).sort({ timestamp: -1 }).limit(50).toArray();
+      socket.emit("chatHistory", messages.reverse());
 
-      // Load chat history on connection
-      const messages = await db.collection("messages").find({}).toArray();
-      socket.emit("chat_history", messages);
-
+      // Listen for 'sendMessage' events
       socket.on('sendMessage', async (messageData) => {
-        const message = new Message({
-          userId: messageData.userId,
-          username: messageData.username,
-          content: messageData.content,
-        });
-        await message.save(); // Save to MongoDB
-        io.emit('message', message); // Broadcast to all clients
+        const savedMessage = await saveMessage(messageData);
+        if (savedMessage) {
+          io.emit('message', savedMessage); // Emit message to all clients
+        }
       });
-
+     
+      // Handle user disconnection
       socket.on("disconnect", () => {
         console.log("User disconnected:", socket.id);
       });
-      socket.on('join', async () => {
-        const client = await clientPromise;
-        const db = client.db("chatApp");
-        const messagesCollection = db.collection("messages");
-        const chatHistory = await Message.find().sort({ timestamp: -1 }).limit(50).exec();
-        socket.emit('chatHistory', chatHistory.reverse()); // Send chat history to user
-      });
-      socket.on('join', async () => {
-  const client = await clientPromise;
-  const db = client.db("chatApp");
-  const messagesCollection = db.collection("messages");
-
-  const chatHistory = await messagesCollection.find().sort({ timestamp: -1 }).limit(50).toArray();
-  socket.emit('chatHistory', chatHistory.reverse());
-});
     });
   }
 
   res.end();
 }
 
+// Disable body parsing for WebSocket connections
 export const config = {
   api: {
     bodyParser: false,
