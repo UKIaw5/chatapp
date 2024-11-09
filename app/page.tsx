@@ -1,47 +1,41 @@
+// /app/page.tsx
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import io from "socket.io-client";
 
-// Initialize the socket connection
-const socket = io({
+// Initialize Socket.io client instance
+const socket = io("http://localhost:3000", {
   path: "/api/socket",
+  transports: ["websocket"],  // Use only WebSocket transport to avoid polling
 });
 
-socket.on("connect", () => {
-  console.log("Client connected with socket ID:", socket.id); // Log connection ID
-});
-
-socket.on('chatHistory', (messages) => {
-  setMessages(messages); // Assume setMessages is a state hook that stores messages
-});
-
-export default function ChatPage() {
+const ChatPage = () => {
   const router = useRouter();
-  const [messages, setMessages] = useState<{ text: string; timestamp: string; sender: string }[]>([]);
+  const [messages, setMessages] = useState<{ text: string; sender: string; timestamp: string }[]>([]);
   const [input, setInput] = useState('');
   const [username, setUsername] = useState('');
-  const [users, setUsers] = useState<string[]>([]);
+  const [users, setUsers] = useState<string[]>([]);  // Store list of logged-in users
 
   useEffect(() => {
-    const storedUsername = localStorage.getItem('username');
+    const storedUsername = localStorage.getItem("username");
     if (!storedUsername) {
-      router.push('/login');
+      router.push("/login");  // Redirect to login if no username is found
     } else {
       setUsername(storedUsername);
-      socket.emit("user_connected", storedUsername);
+      socket.emit("user_connected", storedUsername);  // Notify server that user connected
     }
 
-    // Listen for incoming messages
+    // Listen for messages from server
     socket.on("message", (msg) => {
-      console.log("Received message from server:", msg); // Debug log
       setMessages((prevMessages) => [...prevMessages, msg]);
     });
 
-    // Listen for updated user list
+    // Listen for the updated user list from server
     socket.on("update_user_list", (userList: string[]) => {
-      setUsers(userList);
+      setUsers(userList);  // Update local user list state
     });
 
     return () => {
@@ -50,25 +44,27 @@ export default function ChatPage() {
     };
   }, [router]);
 
+  // Function to send a message
   const sendMessage = () => {
     if (input.trim()) {
-      const message = { text: input, timestamp: new Date().toLocaleTimeString(), sender: username };
-      console.log("Sending message:", message); // Debug log
-      socket.emit("message", message); // Send message to server
+      const message = { text: input, sender: username, timestamp: new Date().toLocaleTimeString() };
+      socket.emit("message", message);
       setInput('');
     }
   };
-  
 
+  // Function to log out and clear session
   const logout = () => {
-    localStorage.removeItem('username');
-    router.push('/login');
+    localStorage.removeItem("username");
+    socket.emit("user_disconnected", username);  // Notify server of disconnection
+    router.push("/login");
   };
 
   return (
     <div style={styles.container}>
       <h1>Welcome, {username}</h1>
-      <button onClick={logout} style={styles.button}>Logout</button>
+      <button onClick={logout} style={styles.button}>Logout</button> {/* Logout Button */}
+      
       <div style={styles.userList}>
         <h3>Online Users</h3>
         <ul>
@@ -77,32 +73,34 @@ export default function ChatPage() {
           ))}
         </ul>
       </div>
+
       <div style={styles.chatWindow}>
+        <h3>Messages</h3>
         <div style={styles.messageList}>
           {messages.map((message, index) => (
-            <div
-              key={index}
-              style={message.sender === username ? styles.selfMessage : styles.otherMessage}
-            >
+            <div key={index} style={message.sender === username ? styles.selfMessage : styles.otherMessage}>
               <span>{message.sender}: {message.text}</span>
               <span style={styles.timestamp}>{message.timestamp}</span>
             </div>
           ))}
         </div>
-        <div style={styles.inputArea}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            style={styles.input}
-          />
-          <button onClick={sendMessage} style={styles.button}>Send</button>
-        </div>
+      </div>
+
+      <div style={styles.inputArea}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message..."
+          style={styles.input}
+        />
+        <button onClick={sendMessage} style={styles.button}>Send</button>
       </div>
     </div>
   );
-}
+};
+
+export default ChatPage;
 
 const styles = {
   container: {
@@ -156,12 +154,6 @@ const styles = {
     backgroundColor: '#e1ffc7',
     borderRadius: '5px',
     maxWidth: '75%',
-  },
-  messageText: {
-    display: 'inline-block',
-    padding: '5px 10px',
-    borderRadius: '4px',
-    backgroundColor: '#f0f0f0',
   },
   timestamp: {
     fontSize: '0.8em',
