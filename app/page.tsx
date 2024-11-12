@@ -9,7 +9,7 @@ import io from "socket.io-client";
 // Initialize Socket.io client instance
 const socket = io("http://localhost:3000", {
   path: "/api/socket",
-  transports: ["websocket"],  // Use only WebSocket transport to avoid polling
+  timeout: 10000,  // Optional: 10-second timeout for connection attempts
 });
 
 const ChatPage = () => {
@@ -35,6 +35,7 @@ const ChatPage = () => {
 
     // Listen for the updated user list from server
     socket.on("update_user_list", (userList: string[]) => {
+      console.log("Received user list on client:", userList);  // Log received user list
       setUsers(userList);  // Update local user list state
     });
 
@@ -68,9 +69,13 @@ const ChatPage = () => {
       <div style={styles.userList}>
         <h3>Online Users</h3>
         <ul>
-          {users.map((user) => (
-            <li key={user}>{user}</li>
-          ))}
+          {users.length > 0 ? (
+            users.map((user) => (
+              <li key={user}>{user}</li>
+            ))
+          ) : (
+            <li>No users online</li>
+          )}
         </ul>
       </div>
 
@@ -89,6 +94,8 @@ const ChatPage = () => {
       <div style={styles.inputArea}>
         <input
           type="text"
+          id="messageInput"  // Added ID attribute for better autofill support
+          name="message"     // Added name attribute
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type your message..."

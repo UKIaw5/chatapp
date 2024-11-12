@@ -1,17 +1,18 @@
 // /pages/api/socket.ts
 
 import { Server } from "socket.io";
-import clientPromise from "../../../lib/mongodb";  // MongoDB connection setup
+import clientPromise from "../../../lib/mongodb";
 
 const users = new Set<string>();
 
 export default async function handler(req, res) {
   if (!res.socket.server.io) {
     console.log("Initializing Socket.io server...");
+
     const io = new Server(res.socket.server, {
       path: "/api/socket",
       cors: {
-        origin: "http://localhost:3000",  // Replace with client’s specific origin in production
+        origin: "http://localhost:3000",  // Replace with the actual client URL in production
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -24,8 +25,9 @@ export default async function handler(req, res) {
 
       // Handle user connection
       socket.on("user_connected", (username) => {
-        socket.username = username;
-        users.add(username);  // Add user to set
+        socket.username = username;  // Attach username to the socket instance
+        users.add(username);
+        console.log("Emitting user list:", Array.from(users));  // Log current list of users
         io.emit("update_user_list", Array.from(users));  // Emit updated user list to all clients
       });
 
@@ -45,16 +47,10 @@ export default async function handler(req, res) {
       // Handle user disconnection and update the user list
       socket.on("disconnect", () => {
         if (socket.username) {
-          users.delete(socket.username);  // Remove user from set
-          io.emit("update_user_list", Array.from(users));  // Broadcast updated user list
+          users.delete(socket.username);
+          console.log("User disconnected. Updated user list:", Array.from(users));  // Log updated list
+          io.emit("update_user_list", Array.from(users));  // Emit updated user list
         }
-        console.log("User disconnected:", socket.id);
-      });
-
-      // Optional: Handle explicit logout
-      socket.on("user_disconnected", (username) => {
-        users.delete(username);  // Remove user from set
-        io.emit("update_user_list", Array.from(users));  // Emit updated user list
       });
     });
   } else {
@@ -64,7 +60,6 @@ export default async function handler(req, res) {
   res.end();
 }
 
-// Next.js API config to disable body parsing for WebSocket communication
 export const config = {
   api: {
     bodyParser: false,
