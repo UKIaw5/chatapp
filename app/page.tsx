@@ -56,8 +56,9 @@ const ChatPage = () => {
 
   // Function to log out and clear session
   const logout = () => {
-    localStorage.removeItem("username");
+    console.log("Emitting user_disconnected for:", username);  // Debug log for logout event
     socket.emit("user_disconnected", username);  // Notify server of disconnection
+    localStorage.removeItem("username");
     router.push("/login");
   };
 

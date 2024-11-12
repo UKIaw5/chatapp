@@ -3,8 +3,6 @@
 import { Server } from "socket.io";
 import clientPromise from "../../../lib/mongodb";
 
-const users = new Set<string>();
-
 export default async function handler(req, res) {
   if (!res.socket.server.io) {
     console.log("Initializing Socket.io server...");
@@ -12,7 +10,7 @@ export default async function handler(req, res) {
     const io = new Server(res.socket.server, {
       path: "/api/socket",
       cors: {
-        origin: "http://localhost:3000",  // Replace with the actual client URL in production
+        origin: "http://localhost:3000",
         methods: ["GET", "POST"],
         credentials: true,
       },
@@ -23,33 +21,56 @@ export default async function handler(req, res) {
     io.on("connection", (socket) => {
       console.log("User connected:", socket.id);
 
-      // Handle user connection
-      socket.on("user_connected", (username) => {
-        socket.username = username;  // Attach username to the socket instance
-        users.add(username);
-        console.log("Emitting user list:", Array.from(users));  // Log current list of users
-        io.emit("update_user_list", Array.from(users));  // Emit updated user list to all clients
+      socket.on("user_connected", async (username) => {
+        socket.username = username;
+
+        const client = await clientPromise;
+        const db = client.db("chatApp");
+        const onlineUsersCollection = db.collection("onlineUsers");
+
+        // Set the user as online in the database
+        await onlineUsersCollection.updateOne(
+          { username },
+          { $set: { status: "online" } },
+          { upsert: true }
+        );
+
+        // Emit the updated list of online users
+        const onlineUsers = await onlineUsersCollection.find({ status: "online" }).toArray();
+        io.emit("update_user_list", onlineUsers.map(user => user.username));
       });
 
-      // Handle incoming messages, save to MongoDB, and broadcast to all clients
-      socket.on("message", async (messageData) => {
-        try {
+      socket.on("user_disconnected", async (username) => {
+        const client = await clientPromise;
+        const db = client.db("chatApp");
+        const onlineUsersCollection = db.collection("onlineUsers");
+
+        // Set the user as offline in the database
+        await onlineUsersCollection.updateOne(
+          { username },
+          { $set: { status: "offline" } }
+        );
+
+        // Emit the updated list of online users
+        const onlineUsers = await onlineUsersCollection.find({ status: "online" }).toArray();
+        io.emit("update_user_list", onlineUsers.map(user => user.username));
+      });
+
+      socket.on("disconnect", async () => {
+        if (socket.username) {
           const client = await clientPromise;
           const db = client.db("chatApp");
-          const messagesCollection = db.collection("messages");
-          await messagesCollection.insertOne(messageData);
-          io.emit("message", messageData);  // Broadcast message to all clients
-        } catch (error) {
-          console.error("Failed to save message to MongoDB:", error);
-        }
-      });
+          const onlineUsersCollection = db.collection("onlineUsers");
 
-      // Handle user disconnection and update the user list
-      socket.on("disconnect", () => {
-        if (socket.username) {
-          users.delete(socket.username);
-          console.log("User disconnected. Updated user list:", Array.from(users));  // Log updated list
-          io.emit("update_user_list", Array.from(users));  // Emit updated user list
+          // Set the user as offline in the database on disconnect
+          await onlineUsersCollection.updateOne(
+            { username: socket.username },
+            { $set: { status: "offline" } }
+          );
+
+          // Emit the updated list of online users
+          const onlineUsers = await onlineUsersCollection.find({ status: "online" }).toArray();
+          io.emit("update_user_list", onlineUsers.map(user => user.username));
         }
       });
     });
