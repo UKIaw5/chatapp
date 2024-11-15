@@ -9,15 +9,15 @@ services:
       - "3000:3000"
     volumes:
       - .:/app
-    environment:
-      - NEXT_DISABLE_FAST_REFRESH=true
-      - NODE_ENV=development
-# Remove or comment out the mongo service below
-#  mongo:
-#    image: mongo:latest
-#    container_name: mongo
-#    ports:
-#      - "27017:27017"
-#    environment:
-#      MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
-#      MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
+    env_file:
+      - .env  # Load environment variables from .env file
+
+  # Uncomment and configure the mongo service if using MongoDB in Docker
+  # mongo:
+  #   image: mongo:latest
+  #   container_name: mongo
+  #   ports:
+  #     - "27017:27017"
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
