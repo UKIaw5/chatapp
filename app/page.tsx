@@ -1,5 +1,3 @@
-// /app/page.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -9,7 +7,6 @@ import io from "socket.io-client";
 // Initialize Socket.io client instance
 const socket = io("http://localhost:3000", {
   path: "/api/socket",
-  timeout: 10000,  // Optional: 10-second timeout for connection attempts
 });
 
 const ChatPage = () => {
@@ -17,15 +14,15 @@ const ChatPage = () => {
   const [messages, setMessages] = useState<{ text: string; sender: string; timestamp: string }[]>([]);
   const [input, setInput] = useState('');
   const [username, setUsername] = useState('');
-  const [users, setUsers] = useState<string[]>([]);  // Store list of logged-in users
+  const [users, setUsers] = useState<string[]>([]); // Store list of logged-in users
 
   useEffect(() => {
     const storedUsername = localStorage.getItem("username");
     if (!storedUsername) {
-      router.push("/login");  // Redirect to login if no username is found
+      router.push("/login"); // Redirect to login if no username is found
     } else {
       setUsername(storedUsername);
-      socket.emit("user_connected", storedUsername);  // Notify server that user connected
+      socket.emit("user_connected", storedUsername); // Notify server that user connected
     }
 
     // Listen for messages from server
@@ -35,8 +32,8 @@ const ChatPage = () => {
 
     // Listen for the updated user list from server
     socket.on("update_user_list", (userList: string[]) => {
-      console.log("Received user list on client:", userList);  // Log received user list
-      setUsers(userList);  // Update local user list state
+      console.log("Received user list on client:", userList); // Log received user list
+      setUsers(userList); // Update local user list state
     });
 
     return () => {
@@ -45,7 +42,6 @@ const ChatPage = () => {
     };
   }, [router]);
 
-  // Function to send a message
   const sendMessage = () => {
     if (input.trim()) {
       const message = { text: input, sender: username, timestamp: new Date().toLocaleTimeString() };
@@ -54,10 +50,9 @@ const ChatPage = () => {
     }
   };
 
-  // Function to log out and clear session
   const logout = () => {
-    console.log("Emitting user_disconnected for:", username);  // Debug log for logout event
-    socket.emit("user_disconnected", username);  // Notify server of disconnection
+    console.log("Emitting user_disconnected for:", username); // Debug log for logout event
+    socket.emit("user_disconnected", username); // Notify server of disconnection
     localStorage.removeItem("username");
     router.push("/login");
   };
@@ -95,8 +90,8 @@ const ChatPage = () => {
       <div style={styles.inputArea}>
         <input
           type="text"
-          id="messageInput"  // Added ID attribute for better autofill support
-          name="message"     // Added name attribute
+          id="messageInput"
+          name="message"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Type your message..."
@@ -107,6 +102,8 @@ const ChatPage = () => {
     </div>
   );
 };
+
+console.log('MongoDB URI:', process.env.MONGODB_URI); // Debugging MONGODB_URI
 
 export default ChatPage;
 

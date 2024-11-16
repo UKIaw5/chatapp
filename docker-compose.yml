@@ -1,6 +1,16 @@
-version: '3.3'
+version: "3.3"
 
 services:
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
+      MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
+    command: ["mongod", "--auth", "--bind_ip_all"]
+
   web:
     build:
       context: .
@@ -9,15 +19,8 @@ services:
       - "3000:3000"
     volumes:
       - .:/app
-    env_file:
-      - .env  # Load environment variables from .env file
-
-  # Uncomment and configure the mongo service if using MongoDB in Docker
-  # mongo:
-  #   image: mongo:latest
-  #   container_name: mongo
-  #   ports:
-  #     - "27017:27017"
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-  #     MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+    environment:
+      - MONGODB_URI=mongodb://artisanalbaguette:6ShwDWr64l8E0l5v@mongo:27017/chatApp
+      - NODE_ENV=development
+    depends_on:
+      - mongo
