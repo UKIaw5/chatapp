@@ -20,7 +20,7 @@ services:
     volumes:
       - .:/app
     environment:
-      - MONGODB_URI=mongodb://artisanalbaguette:6ShwDWr64l8E0l5v@mongo:27017/chatApp
+      - MONGODB_URI=mongodb://chatappuser:chatappuserpass@mongo:27017/chatApp
       - NODE_ENV=development
     depends_on:
       - mongo
