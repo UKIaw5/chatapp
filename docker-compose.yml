@@ -6,6 +6,9 @@ services:
     container_name: mongo
     ports:
       - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     environment:
       MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
       MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
@@ -20,7 +23,10 @@ services:
     volumes:
       - .:/app
     environment:
-      - MONGODB_URI=mongodb://chatappuser:chatappuserpass@mongo:27017/chatApp
+      - MONGODB_URI=mongodb://chatappuser:chatappuserpass@mongo:27017/chatapp?authSource=chatapp
       - NODE_ENV=development
     depends_on:
       - mongo
+
+volumes:
+  mongo_data:
