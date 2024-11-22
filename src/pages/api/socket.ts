@@ -1,84 +1,45 @@
-// /pages/api/socket.ts
+import { Server } from 'socket.io';
+import { MongoClient } from 'mongodb';
 
-import { Server } from "socket.io";
-import clientPromise from "../../../lib/mongodb";
+const clientPromise = MongoClient.connect(process.env.MONGODB_URI);
 
-export default async function handler(req, res) {
-  if (!res.socket.server.io) {
-    console.log("Initializing Socket.io server...");
+export default function handler(req, res) {
+    if (!res.socket.server.io) {
+        const io = new Server(res.socket.server);
+        res.socket.server.io = io;
 
-    const io = new Server(res.socket.server, {
-      path: "/api/socket",
-      cors: {
-        origin: "http://localhost:3000",
-        methods: ["GET", "POST"],
-        credentials: true,
-      },
-    });
+        io.on('connection', async (socket) => {
+            console.log('User connected:', socket.id);
 
-    res.socket.server.io = io;
+            try {
+                const client = await clientPromise;
+                const db = client.db('chatApp');
+                const onlineUsersCollection = db.collection('onlineUsers');
 
-    io.on("connection", (socket) => {
-      console.log("User connected:", socket.id);
+                // Handle user connection
+                socket.on('setUserOnline', async (username) => {
+                    await onlineUsersCollection.updateOne(
+                        { username },
+                        { $set: { status: 'online' } },
+                        { upsert: true }
+                    );
+                    console.log(`${username} is now online`);
+                });
 
-      socket.on("user_connected", async (username) => {
-        socket.username = username;
-
-        const client = await clientPromise;
-        const db = client.db("chatApp");
-        const onlineUsersCollection = db.collection("onlineUsers");
-
-        // Set the user as online in the database
-        await onlineUsersCollection.updateOne(
-          { username },
-          { $set: { status: "online" } },
-          { upsert: true }
-        );
-
-        // Emit the updated list of online users
-        const onlineUsers = await onlineUsersCollection.find({ status: "online" }).toArray();
-        io.emit("update_user_list", onlineUsers.map(user => user.username));
-      });
-
-      socket.on("user_disconnected", async (username) => {
-        const client = await clientPromise;
-        const db = client.db("chatApp");
-        const onlineUsersCollection = db.collection("onlineUsers");
-
-        // Set the user as offline in the database
-        await onlineUsersCollection.updateOne(
-          { username },
-          { $set: { status: "offline" } }
-        );
-
-        // Emit the updated list of online users
-        const onlineUsers = await onlineUsersCollection.find({ status: "online" }).toArray();
-        io.emit("update_user_list", onlineUsers.map(user => user.username));
-      });
-
-      socket.on("disconnect", async () => {
-        if (socket.username) {
-          const client = await clientPromise;
-          const db = client.db("chatApp");
-          const onlineUsersCollection = db.collection("onlineUsers");
-
-          // Set the user as offline in the database on disconnect
-          await onlineUsersCollection.updateOne(
-            { username: socket.username },
-            { $set: { status: "offline" } }
-          );
-
-          // Emit the updated list of online users
-          const onlineUsers = await onlineUsersCollection.find({ status: "online" }).toArray();
-          io.emit("update_user_list", onlineUsers.map(user => user.username));
-        }
-      });
-    });
-  } else {
-    console.log("Socket.io server already initialized");
-  }
-
-  res.end();
+                // Handle user disconnection
+                socket.on('disconnect', async () => {
+                    await onlineUsersCollection.updateOne(
+                        { username: socket.id },
+                        { $set: { status: 'offline' } }
+                    );
+                    console.log(`User ${socket.id} disconnected`);
+                });
+            } catch (error) {
+                console.error('Error in socket handler:', error);
+            }
+        });
+    }
+    res.end();
 }
 
 export const config = {
