@@ -1,6 +1,19 @@
-version: '3.3'
+version: "3.3"
 
 services:
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
+      MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
+    command: ["mongod", "--auth", "--bind_ip_all"]
+
   web:
     build:
       context: .
@@ -9,15 +22,11 @@ services:
       - "3000:3000"
     volumes:
       - .:/app
-      - /app/node_modules
     environment:
-      NODE_ENV: development
-# Remove or comment out the mongo service below
-#  mongo:
-#    image: mongo:latest
-#    container_name: mongo
-#    ports:
-#      - "27017:27017"
-#    environment:
-#      MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
-#      MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
+      - MONGODB_URI=mongodb://chatappuser:chatappuserpass@mongo:27017/chatapp?authSource=admin
+      - NODE_ENV=development
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

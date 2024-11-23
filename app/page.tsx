@@ -1,46 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import io from "socket.io-client";
 
-// Initialize the socket connection
-const socket = io({
+const socket = io("http://localhost:3000", {
   path: "/api/socket",
 });
 
-socket.on("connect", () => {
-  console.log("Client connected with socket ID:", socket.id); // Log connection ID
-});
-
-socket.on('chatHistory', (messages) => {
-  setMessages(messages); // Assume setMessages is a state hook that stores messages
-});
-
-export default function ChatPage() {
+const ChatPage = () => {
   const router = useRouter();
-  const [messages, setMessages] = useState<{ text: string; timestamp: string; sender: string }[]>([]);
-  const [input, setInput] = useState('');
-  const [username, setUsername] = useState('');
-  const [users, setUsers] = useState<string[]>([]);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [username, setUsername] = useState("");
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    const storedUsername = localStorage.getItem('username');
+    const storedUsername = localStorage.getItem("username");
     if (!storedUsername) {
-      router.push('/login');
+      router.push("/login");
     } else {
       setUsername(storedUsername);
       socket.emit("user_connected", storedUsername);
     }
 
-    // Listen for incoming messages
     socket.on("message", (msg) => {
-      console.log("Received message from server:", msg); // Debug log
       setMessages((prevMessages) => [...prevMessages, msg]);
     });
 
-    // Listen for updated user list
-    socket.on("update_user_list", (userList: string[]) => {
+    socket.on("update_user_list", (userList) => {
       setUsers(userList);
     });
 
@@ -52,32 +40,36 @@ export default function ChatPage() {
 
   const sendMessage = () => {
     if (input.trim()) {
-      const message = { text: input, timestamp: new Date().toLocaleTimeString(), sender: username };
-      console.log("Sending message:", message); // Debug log
-      socket.emit("message", message); // Send message to server
-      setInput('');
+      const message = { text: input, sender: username, timestamp: new Date().toLocaleTimeString() };
+      socket.emit("message", message);
+      setInput("");
     }
   };
-  
 
   const logout = () => {
-    localStorage.removeItem('username');
-    router.push('/login');
+    socket.emit("user_disconnected", username);
+    localStorage.removeItem("username");
+    router.push("/login");
   };
 
   return (
     <div style={styles.container}>
       <h1>Welcome, {username}</h1>
-      <button onClick={logout} style={styles.button}>Logout</button>
+      <button onClick={logout} style={styles.button}>
+        Logout
+      </button>
+
       <div style={styles.userList}>
         <h3>Online Users</h3>
         <ul>
-          {users.map((user) => (
-            <li key={user}>{user}</li>
-          ))}
+          {users.length > 0
+            ? users.map((user) => <li key={user}>{user}</li>)
+            : <li>No users online</li>}
         </ul>
       </div>
+
       <div style={styles.chatWindow}>
+        <h3>Messages</h3>
         <div style={styles.messageList}>
           {messages.map((message, index) => (
             <div
@@ -89,103 +81,105 @@ export default function ChatPage() {
             </div>
           ))}
         </div>
-        <div style={styles.inputArea}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            style={styles.input}
-          />
-          <button onClick={sendMessage} style={styles.button}>Send</button>
-        </div>
+      </div>
+
+      <div style={styles.inputArea}>
+        <label htmlFor="messageInput">Message:</label>
+        <input
+          type="text"
+          id="messageInput" // Added `id` for accessibility
+          name="message" // Added `name` for form autofill
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type your message..."
+          style={styles.input}
+        />
+        <button onClick={sendMessage} style={styles.button}>
+          Send
+        </button>
       </div>
     </div>
   );
-}
+};
+
+export default ChatPage;
 
 const styles = {
   container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100vh',
-    backgroundColor: '#f5f5f5',
-    padding: '20px',
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "100vh",
+    backgroundColor: "#f5f5f5",
+    padding: "20px",
   },
   userList: {
-    width: '100%',
-    maxWidth: '300px',
-    marginBottom: '20px',
-    padding: '10px',
-    backgroundColor: '#ffffff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+    width: "100%",
+    maxWidth: "300px",
+    marginBottom: "20px",
+    padding: "10px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
   },
   chatWindow: {
-    width: '100%',
-    maxWidth: '500px',
-    height: '400px',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#ffffff',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+    width: "100%",
+    maxWidth: "500px",
+    height: "400px",
+    display: "flex",
+    flexDirection: "column",
+    backgroundColor: "#ffffff",
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
   },
   messageList: {
     flex: 1,
-    padding: '10px',
-    overflowY: 'auto' as 'auto',
-    borderBottom: '1px solid #ddd',
+    padding: "10px",
+    overflowY: "auto",
+    borderBottom: "1px solid #ddd",
   },
   selfMessage: {
-    alignSelf: 'flex-end',
-    margin: '5px 0',
-    padding: '8px',
-    backgroundColor: '#d1e7ff',
-    borderRadius: '5px',
-    maxWidth: '75%',
+    alignSelf: "flex-end",
+    margin: "5px 0",
+    padding: "8px",
+    backgroundColor: "#d1e7ff",
+    borderRadius: "5px",
+    maxWidth: "75%",
   },
   otherMessage: {
-    alignSelf: 'flex-start',
-    margin: '5px 0',
-    padding: '8px',
-    backgroundColor: '#e1ffc7',
-    borderRadius: '5px',
-    maxWidth: '75%',
-  },
-  messageText: {
-    display: 'inline-block',
-    padding: '5px 10px',
-    borderRadius: '4px',
-    backgroundColor: '#f0f0f0',
+    alignSelf: "flex-start",
+    margin: "5px 0",
+    padding: "8px",
+    backgroundColor: "#e1ffc7",
+    borderRadius: "5px",
+    maxWidth: "75%",
   },
   timestamp: {
-    fontSize: '0.8em',
-    color: '#888',
-    marginLeft: '10px',
+    fontSize: "0.8em",
+    color: "#888",
+    marginLeft: "10px",
   },
   inputArea: {
-    display: 'flex',
-    padding: '10px',
-    borderTop: '1px solid #ddd',
+    display: "flex",
+    padding: "10px",
+    borderTop: "1px solid #ddd",
   },
   input: {
     flex: 1,
-    padding: '8px',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-    marginRight: '10px',
+    padding: "8px",
+    borderRadius: "4px",
+    border: "1px solid #ddd",
+    marginRight: "10px",
   },
   button: {
-    padding: '8px 12px',
-    backgroundColor: '#0070f3',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
+    padding: "8px 12px",
+    backgroundColor: "#0070f3",
+    color: "#fff",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
   },
 };
