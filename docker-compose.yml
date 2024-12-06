@@ -10,9 +10,9 @@ services:
       - mongo_data:/data/db
       - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
     environment:
-      MONGO_INITDB_ROOT_USERNAME: artisanalbaguette
-      MONGO_INITDB_ROOT_PASSWORD: 6ShwDWr64l8E0l5v
-    command: ["mongod", "--auth", "--bind_ip_all"]
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    command: ["mongod", "--auth"]
 
   web:
     build:
@@ -23,8 +23,8 @@ services:
     volumes:
       - .:/app
     environment:
-      - MONGODB_URI=mongodb://chatappuser:chatappuserpass@172.29.0.2:27017:27017/chatapp?authSource=admin
-      - NODE_ENV=development
+      MONGODB_URI: mongodb://chatappuser:chatappuserpass@mongo:27017/chatapp?authSource=admin
+      NODE_ENV: development
     depends_on:
       - mongo
 
